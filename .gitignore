@@ -1,0 +1,65 @@
+# Original downloaded materials; may contain embedded credentials
+/_local_backup/
+*.zip
+*.tar
+*.tar.gz
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials*
+.aws/
+.kube/
+*kubeconfig*
+infra/k8s/secret.yaml
+infra/k8s/*secret.local.y*ml
+
+# Python environments, caches, test output, and builds
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage*
+htmlcov/
+coverage.xml
+build/
+dist/
+
+# Infrastructure state and local variable values
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Tooling, runtime data, and editor files
+node_modules/
+logs/
+*.log
+*.sqlite*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

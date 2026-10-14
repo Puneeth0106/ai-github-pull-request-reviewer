@@ -1,0 +1,107 @@
+x-app: &app
+  env_file: .env
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  migrate:
+    env_file: .env
+    build:
+      context: .
+      dockerfile: services/webhook/Dockerfile
+    working_dir: /db
+    command: [alembic, -c, /db/alembic.ini, upgrade, head]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  gateway:
+    <<: *app
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      - webhook
+
+  webhook:
+    <<: *app
+    build:
+      context: .
+      dockerfile: services/webhook/Dockerfile
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    <<: *app
+    build:
+      context: .
+      dockerfile: services/webhook/Dockerfile
+    # Both tasks are registered in services/webhook/worker.py.
+    command: [celery, -A, worker, worker, --loglevel=info, -Q, "webhook,learning"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      orchestrator:
+        condition: service_started
+      learner:
+        condition: service_started
+
+  orchestrator:
+    <<: *app
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      reviewer:
+        condition: service_started
+
+  reviewer:
+    <<: *app
+    build:
+      context: .
+      dockerfile: services/reviewer/Dockerfile
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  learner:
+    <<: *app
+    build:
+      context: .
+      dockerfile: services/learner/Dockerfile
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
